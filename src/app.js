@@ -20,3 +20,7 @@ export function createApp() {
 
   return app;
 }
+
+// ✅ Esto es lo que Vercel necesita para “Express on Vercel”
+const app = createApp();
+export default app;
