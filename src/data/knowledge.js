@@ -10,7 +10,7 @@ export const KNOWLEDGE = [
     id: "about_es",
     title: "Sobre Nico (ES)",
     text: `Nicolás “Nico” Espin. Dev Full-Stack argentino nacido en Córdoba (Argentina), con foco fuerte en Frontend.
-Fecha de nacimiento: 27/01/2000 (25 años; cumple 26 el 27/01/2026).
+Fecha de nacimiento: 27/01/2000 .
 Estado: en pareja (no casado).
 Perfil: construcción de productos web y dashboards con React/Next.js/TypeScript; también hace backend cuando aporta valor.`,
   },
@@ -18,7 +18,7 @@ Perfil: construcción de productos web y dashboards con React/Next.js/TypeScript
     id: "about_en",
     title: "About Nico (EN)",
     text: `Nicolás “Nico” Espin. Argentine Full‑Stack developer born in Córdoba, Argentina, with a strong Frontend focus.
-Born on Jan 27, 2000 (25 years old; turning 26 on Jan 27, 2026).
+Born on Jan 27, 2000 .
 Relationship: has a partner (not married).
 Profile: builds web products and dashboards with React/Next.js/TypeScript; also works on backend when it adds value.`,
   },
@@ -118,5 +118,56 @@ Toque Nico:
 - Tono buena onda y profesional; en español podés usar "vos" y un guiño cordobés MUY leve cuando encaje (ej: "de una", "joya").
 - Si preguntan por gustos personales, recordá: cuarteto, Fernet con Coca, gym y gaming.
 - Evitá chamuyo: preferí honestidad + pasos siguientes.`,
+  },
+  // ✅ NUEVOS: Synttek / Syntek
+  {
+    id: "project_synttek_es",
+    title: "Proyecto: Synttek (ES)",
+    text: `Synttek (también escrito "Syntek") es una landing page desarrollada con Next.js 15.3.x (App Router) con i18n (next-intl) para inglés y español.
+Arquitectura: rutas por locale (src/app/[locale]/), secciones modulares (Hero, Introduction, Services, OurTools, About, Faqs, Contact, CallToAction) + componentes comunes (Navbar, Footer, TitleSection).
+UI/animaciones: Tailwind CSS v4, framer-motion, motion, lucide-react. Utilidades: clsx + tailwind-merge. Notificaciones: react-toastify. Email desde cliente: @emailjs/browser.
+Notas técnicas: middleware de next-intl para locales; Tailwind v4 inline en globals.css; tipografías Geist Sans/Mono con next/font.
+
+Demo: https://syntek-phi.vercel.app/es
+Repo: https://github.com/NicoEspin/Syntek
+Alias: Syntek.`,
+  },
+  {
+    id: "project_synttek_en",
+    title: "Project: Synttek (EN)",
+    text: `Synttek (also spelled "Syntek") is a landing page built with Next.js 15.3.x (App Router) with i18n (next-intl) for English and Spanish.
+Architecture: locale-based routing (src/app/[locale]/), modular sections (Hero, Introduction, Services, OurTools, About, Faqs, Contact, CallToAction) + common components (Navbar, Footer, TitleSection).
+UI/animations: Tailwind CSS v4, framer-motion, motion, lucide-react. Utilities: clsx + tailwind-merge. Toasts: react-toastify. Client-side email: @emailjs/browser.
+Technical notes: next-intl middleware for locale routing; Tailwind v4 inline config in globals.css; Geist Sans/Mono via next/font.
+
+Demo: https://syntek-phi.vercel.app/es
+Repo: https://github.com/NicoEspin/Syntek
+Alias: Syntek.`,
+  },
+  {
+    id: "project_warup_es",
+    title: "Proyecto: Warup (ES)",
+    text: `Warup es una aplicación de mensajería en tiempo real full-stack.
+Arquitectura: backend con Express.js + MongoDB + Socket.io para comunicación en vivo; frontend React 18 + Vite.
+Backend: autenticación JWT (cookies HTTP-only), rutas protegidas, modelos User/Message con Mongoose, bcrypt para contraseñas, Cloudinary para imágenes.
+Frontend: gestión de estado con Zustand (useAuthStore, useChatStore), enrutamiento con React Router v7, UI con Tailwind CSS + DaisyUI, notificaciones con react-hot-toast.
+Características: chat en tiempo real, indicadores de usuarios online, soporte para imágenes en mensajes y perfiles, temas personalizables, rutas protegidas frontend/backend.
+Stack completo: Node.js, Express, MongoDB, Socket.io, React, Vite, Zustand, Tailwind CSS, DaisyUI.
+
+Repo: https://github.com/NicoEspin/chat-app
+Nota: proyecto personal para demostrar arquitectura full-stack moderna con comunicación en tiempo real.`,
+  },
+  {
+    id: "project_warup_en",
+    title: "Project: Warup (EN)",
+    text: `Warup is a full-stack real-time messaging application.
+Architecture: Express.js + MongoDB + Socket.io backend for live communication; React 18 + Vite frontend.
+Backend: JWT authentication (HTTP-only cookies), protected routes, User/Message models with Mongoose, bcrypt for passwords, Cloudinary for images.
+Frontend: state management with Zustand (useAuthStore, useChatStore), routing with React Router v7, UI with Tailwind CSS + DaisyUI, notifications with react-hot-toast.
+Features: real-time chat, online user indicators, image support in messages and profiles, customizable themes, protected routes (frontend/backend).
+Full stack: Node.js, Express, MongoDB, Socket.io, React, Vite, Zustand, Tailwind CSS, DaisyUI.
+
+Repo: https://github.com/NicoEspin/chat-app
+Note: personal project showcasing modern full-stack architecture with real-time communication.`,
   },
 ];

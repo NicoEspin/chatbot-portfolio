@@ -1,68 +1,95 @@
-import { groq } from "../config/groq.js";
 import { env } from "../config/env.js";
 import { retrieve } from "../services/rag.js";
 
 const GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions";
-export async function postChat(req, res) {
-  try {
-    const { messages } = req.body;
 
-    if (!Array.isArray(messages)) {
-      return res.status(400).json({ error: "messages must be an array" });
-    }
+function normalize(s) {
+  return String(s || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
 
-    const lastUserMsg =
-      [...messages].reverse().find((m) => m?.role === "user")?.content ?? "";
+// Heurística simple EN/ES (suficiente para elegir system prompt + fallback de texto)
+function detectLangFromText(text) {
+  const q = ` ${normalize(text)} `;
 
-    const ctxDocs = retrieve(String(lastUserMsg), 8);
+  const enHints = [
+    " the ",
+    " and ",
+    " what ",
+    " how ",
+    " about ",
+    " project ",
+    " repo ",
+    " repository ",
+    " link ",
+    " links ",
+    " github ",
+    " linkedin ",
+    " demo ",
+  ];
 
-    const safeDocs = (ctxDocs || []).filter(
-      (d) => d && typeof d.title === "string" && typeof d.text === "string",
+  const hasEn = enHints.some((h) => q.includes(h));
+  const hasEsChars = /[ñ¿¡]/i.test(text);
+  const hasEsWords =
+    /\b(que|cómo|como|para|vos|tenes|tenés|proyecto|repositorio|enlace|links)\b/i.test(
+      q,
     );
 
-    const contextBlock = safeDocs.length
-      ? safeDocs.map((d) => `### ${d.title}\n${d.text}`).join("\n\n")
-      : "No hay contexto disponible.";
+  if (hasEsChars || hasEsWords) return "es";
+  if (hasEn) return "en";
+  return "es";
+}
 
-    const system = {
-      role: "system",
-      content: `Sos el asistente del portfolio de Nico Espin, tu nombre es Coquito.
-Reglas:
-- Respondé corto, claro y útil.
-- Respondé en el idioma del usuario (si escribe en inglés, respondé en inglés).
-- Usá SOLO el contexto provisto abajo.
-- No inventes links, empresas, fechas ni métricas.
-- Si falta info: decí "No estoy seguro con la info que tengo" y ofrecé contacto.
+// Mantener docs “obligatorios” siempre presentes si están disponibles en lo recuperado
+function ensureRequiredDocs(retrievedDocs, lang) {
+  const wanted = new Set([
+    "assistant_style",
+    "links",
+    lang === "en" ? "contact_en" : "contact_es",
+  ]);
 
-Contexto del portfolio:
-${contextBlock}`,
-    };
+  const byId = new Map((retrievedDocs || []).map((d) => [d?.id, d]));
+  const out = [];
 
-    const completion = await groq.chat.completions.create({
-      model: env.GROQ_MODEL,
-      messages: [system, ...messages],
-      temperature: 0.2,
-      max_completion_tokens: 600,
-    });
-
-    const assistantMessage = completion.choices?.[0]?.message;
-    return res.json({ message: assistantMessage });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "server_error" });
+  // primero obligatorios (si están)
+  for (const id of wanted) {
+    const d = byId.get(id);
+    if (d && typeof d.title === "string" && typeof d.text === "string")
+      out.push(d);
   }
+
+  // después el resto, sin duplicados
+  const seen = new Set(out.map((d) => d.id));
+  for (const d of retrievedDocs || []) {
+    if (!d || !d.id || seen.has(d.id)) continue;
+    if (typeof d.title !== "string" || typeof d.text !== "string") continue;
+    out.push(d);
+    seen.add(d.id);
+  }
+
+  return out;
 }
 
 export async function postChatStream(req, res) {
   let clientClosed = false;
   let keepAlive = null;
+  let hardTimeout = null;
+  let reader = null;
 
-  // helper: log con timestamp corto
   const log = (...args) =>
     console.log("[SSE]", new Date().toISOString(), ...args);
 
-  // helper: cierre seguro del SSE + abort upstream
   const controller = new AbortController();
+
+  const safeWrite = (chunk) => {
+    if (clientClosed || res.writableEnded) return;
+    try {
+      res.write(chunk);
+    } catch {}
+  };
+
   const closeStream = (reason = "unknown") => {
     if (clientClosed) return;
     clientClosed = true;
@@ -73,12 +100,20 @@ export async function postChatStream(req, res) {
       controller.abort();
     } catch {}
 
+    try {
+      reader?.cancel?.();
+    } catch {}
+
     if (keepAlive) {
       clearInterval(keepAlive);
       keepAlive = null;
     }
 
-    // 🔥 CLAVE: cerrar respuesta SSE para que el frontend salga del reader.read()
+    if (hardTimeout) {
+      clearTimeout(hardTimeout);
+      hardTimeout = null;
+    }
+
     if (!res.writableEnded) {
       try {
         res.end();
@@ -96,30 +131,35 @@ export async function postChatStream(req, res) {
     const lastUserMsg =
       [...messages].reverse().find((m) => m?.role === "user")?.content ?? "";
 
-    const ctxDocs = retrieve(String(lastUserMsg), 4);
-    console.log("[RAG]", {
-      q: lastUserMsg,
-      retrieved: (ctxDocs || []).map((d) => ({
-        id: d?.id,
-        title: d?.title,
-        hasText: typeof d?.text === "string",
-        hasContent: typeof d?.content === "string",
-      })),
-    });
-    const safeDocs = (ctxDocs || []).filter(
+    const lang = detectLangFromText(lastUserMsg);
+
+    // ✅ Pedimos más para que entren estilo + links + proyectos
+    const ctxDocs = retrieve(String(lastUserMsg), 8);
+
+    const safeDocsBase = (ctxDocs || []).filter(
       (d) => d && typeof d.title === "string" && typeof d.text === "string",
     );
-    console.log(
-      "[RAG] safeDocs",
-      safeDocs.map((d) => d.id || d.title),
-    );
+
+    const safeDocs = ensureRequiredDocs(safeDocsBase, lang);
+
+    log("[RAG]", {
+      q: lastUserMsg,
+      lang,
+      retrieved: safeDocs.map((d) => ({ id: d.id, title: d.title })),
+    });
+
+    const noContextMsg =
+      lang === "en" ? "No context available." : "No hay contexto disponible.";
+
     const contextBlock = safeDocs.length
       ? safeDocs.map((d) => `### ${d.title}\n${d.text}`).join("\n\n")
-      : "No hay contexto disponible.";
+      : noContextMsg;
 
-    const system = {
-      role: "system",
-      content: `You are Coquito, the assistant for Nico Espin's portfolio.
+    const system =
+      lang === "en"
+        ? {
+            role: "system",
+            content: `You are Coquito, the assistant for Nico Espin's portfolio.
 
 Rules:
 - Reply briefly and clearly, in the same language as the user's last message (Spanish or English).
@@ -130,7 +170,21 @@ Rules:
 
 Portfolio context:
 ${contextBlock}`,
-    };
+          }
+        : {
+            role: "system",
+            content: `Sos Coquito, el asistente del portfolio de Nico Espin.
+
+Reglas:
+- Respondé corto, claro y útil, en el mismo idioma del último mensaje del usuario (ES/EN).
+- Usá SOLO el contexto provisto. Si la respuesta no está en el contexto, decí que no estás seguro y ofrecé: pedir detalle o contactar a Nico desde el formulario del sitio.
+- No inventes links, empresas, fechas ni métricas.
+- Podés traducir hechos del contexto al idioma del usuario, pero no agregues hechos nuevos.
+- Si el usuario solo saluda (ej: "hola"/"hi"), saludá y preguntá qué quiere saber.
+
+Contexto del portfolio:
+${contextBlock}`,
+          };
 
     // ✅ SSE headers hacia el browser
     res.status(200);
@@ -140,7 +194,6 @@ ${contextBlock}`,
     res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders?.();
 
-    // ✅ logs de lifecycle (importante para descubrir quién corta)
     log("request start", {
       url: req.originalUrl,
       origin: req.headers.origin,
@@ -148,39 +201,35 @@ ${contextBlock}`,
       ua: req.headers["user-agent"],
     });
 
-    // ⚠️ Usá res.close para SSE (no req.close)
+    // ✅ SSE close lifecycle
     res.on("close", () => {
       log("res close event fired");
       closeStream("res_close");
     });
 
-    // request aborted (útil con proxies)
     req.on("aborted", () => {
       log("req aborted event fired");
       closeStream("req_aborted");
     });
 
-    // (solo debug) si querés ver si req.close se dispara “de más”
     req.on("close", () => {
       log("req close event fired (debug)");
-      // NO cierro acá para no abortar de más
+      // no cierro acá para evitar abortar de más
     });
 
     // ✅ confirmación inmediata
-    res.write(`event: ready\ndata: {}\n\n`);
+    safeWrite(`event: ready\ndata: {}\n\n`);
     log("sent: ready");
 
     // keep-alive cada 15s
     keepAlive = setInterval(() => {
-      if (!clientClosed && !res.writableEnded) {
-        res.write(`: ping\n\n`);
-        log("sent: ping");
-      }
+      safeWrite(`: ping\n\n`);
+      log("sent: ping");
     }, 15000);
 
     // ✅ timeout duro para evitar hangs infinitos si upstream queda colgado
     const hardTimeoutMs = 60000;
-    const hardTimeout = setTimeout(() => {
+    hardTimeout = setTimeout(() => {
       log("hardTimeout reached -> abort upstream", { hardTimeoutMs });
       closeStream("hard_timeout");
     }, hardTimeoutMs);
@@ -218,18 +267,14 @@ ${contextBlock}`,
       const errText = await upstream.text().catch(() => "");
       log("upstream error body (first 300)", errText?.slice?.(0, 300) || "");
 
-      if (!res.writableEnded) {
-        res.write(
-          `event: error\ndata: ${JSON.stringify({
-            error: "upstream_error",
-            message: `Groq upstream HTTP ${upstream.status}`,
-            details: errText?.slice?.(0, 500) || "",
-          })}\n\n`,
-        );
-        res.write(`event: done\ndata: [DONE]\n\n`);
-      }
-
-      clearTimeout(hardTimeout);
+      safeWrite(
+        `event: error\ndata: ${JSON.stringify({
+          error: "upstream_error",
+          message: `Groq upstream HTTP ${upstream.status}`,
+          details: errText?.slice?.(0, 500) || "",
+        })}\n\n`,
+      );
+      safeWrite(`event: done\ndata: [DONE]\n\n`);
       closeStream("upstream_not_ok");
       return;
     }
@@ -237,22 +282,21 @@ ${contextBlock}`,
     if (!upstream.body) {
       log("upstream has no body");
 
-      if (!res.writableEnded) {
-        res.write(
-          `event: error\ndata: ${JSON.stringify({
-            error: "no_upstream_body",
-            message: "Groq no devolvió body para streaming.",
-          })}\n\n`,
-        );
-        res.write(`event: done\ndata: [DONE]\n\n`);
-      }
-
-      clearTimeout(hardTimeout);
+      safeWrite(
+        `event: error\ndata: ${JSON.stringify({
+          error: "no_upstream_body",
+          message:
+            lang === "en"
+              ? "Groq returned no body for streaming."
+              : "Groq no devolvió body para streaming.",
+        })}\n\n`,
+      );
+      safeWrite(`event: done\ndata: [DONE]\n\n`);
       closeStream("no_upstream_body");
       return;
     }
 
-    const reader = upstream.body.getReader();
+    reader = upstream.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
     let deltaCount = 0;
@@ -285,14 +329,8 @@ ${contextBlock}`,
 
         if (dataStr === "[DONE]") {
           log("received: [DONE]", { deltaCount });
-
-          if (!res.writableEnded) {
-            res.write(`event: done\ndata: [DONE]\n\n`);
-            res.end();
-          }
-
-          clearTimeout(hardTimeout);
-          if (keepAlive) clearInterval(keepAlive);
+          safeWrite(`event: done\ndata: [DONE]\n\n`);
+          closeStream("done");
           return;
         }
 
@@ -305,9 +343,7 @@ ${contextBlock}`,
             if (deltaCount <= 5 || deltaCount % 20 === 0) {
               log("delta", { deltaCount, sample: delta.slice(0, 40) });
             }
-            if (!res.writableEnded) {
-              res.write(`event: delta\ndata: ${JSON.stringify({ delta })}\n\n`);
-            }
+            safeWrite(`event: delta\ndata: ${JSON.stringify({ delta })}\n\n`);
           }
         } catch {
           // Fallback: manda data cruda como delta
@@ -317,11 +353,9 @@ ${contextBlock}`,
             sample: String(dataStr).slice(0, 60),
           });
 
-          if (!res.writableEnded) {
-            res.write(
-              `event: delta\ndata: ${JSON.stringify({ delta: dataStr })}\n\n`,
-            );
-          }
+          safeWrite(
+            `event: delta\ndata: ${JSON.stringify({ delta: dataStr })}\n\n`,
+          );
         }
       }
     }
@@ -332,17 +366,9 @@ ${contextBlock}`,
       writableEnded: res.writableEnded,
     });
 
-    if (!res.writableEnded) {
-      res.write(`event: done\ndata: [DONE]\n\n`);
-      res.end();
-    }
-
-    clearTimeout(hardTimeout);
-    if (keepAlive) clearInterval(keepAlive);
+    safeWrite(`event: done\ndata: [DONE]\n\n`);
+    closeStream("loop_exit_without_done");
   } catch (err) {
-    if (keepAlive) clearInterval(keepAlive);
-
-    // ✅ CRÍTICO: si abortaste, cerrá stream (no return pelado)
     if (err?.name === "AbortError") {
       log("caught AbortError");
       closeStream("abort_error");
@@ -352,14 +378,15 @@ ${contextBlock}`,
     console.error("STREAM ERROR:", err);
 
     if (res.headersSent && !res.writableEnded) {
-      res.write(
+      safeWrite(
         `event: error\ndata: ${JSON.stringify({
           error: "server_error",
           message: err?.message || "server_error",
         })}\n\n`,
       );
-      res.write(`event: done\ndata: [DONE]\n\n`);
-      return res.end();
+      safeWrite(`event: done\ndata: [DONE]\n\n`);
+      closeStream("server_error_headers_sent");
+      return;
     }
 
     return res.status(500).json({ error: "server_error" });
