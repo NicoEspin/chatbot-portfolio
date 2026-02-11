@@ -59,15 +59,28 @@ Certificate: https://cert.efset.org/Z8d5y9`,
   {
     id: "projects_es",
     title: "Proyectos (ES)",
-    text: `Portfolio: proyecto personal en React + Vite + Three.js (@react-three/fiber / drei) y framer-motion.
-Nota: cuando Nico agregue proyectos, listarlos con bullets, breve impacto y links (demo / repo).`,
+    text: `Proyectos destacados:
+- Andeshire: plataforma ATS enterprise con automatización e integración de IA.
+- Thumblify: generador de thumbnails con IA + comunidad pública.
+  Demo: https://thumblify-chi-henna.vercel.app/
+  Frontend: https://github.com/NicoEspin/Thumbnail-Generator
+  Backend: https://github.com/NicoEspin/Thumbnail-Generator-Backend
+- Warup: chat en tiempo real full-stack con Socket.io.
+- Synttek/Syntek: landing multi-idioma con Next.js + next-intl.`,
   },
   {
     id: "projects_en",
     title: "Projects (EN)",
-    text: `Portfolio: personal project built with React + Vite + Three.js (@react-three/fiber / drei) and framer-motion.
-Note: when Nico adds projects, list them as bullets with short impact + links (demo / repo).`,
+    text: `Featured projects:
+- Andeshire: enterprise ATS platform with AI/automation.
+- Thumblify: AI thumbnail generator + public community.
+  Live: https://thumblify-chi-henna.vercel.app/
+  Frontend: https://github.com/NicoEspin/Thumbnail-Generator
+  Backend: https://github.com/NicoEspin/Thumbnail-Generator-Backend
+- Warup: full-stack real-time chat with Socket.io.
+- Synttek/Syntek: multilingual landing page with Next.js + next-intl.`,
   },
+
   {
     id: "links",
     title: "Links oficiales",
@@ -169,5 +182,33 @@ Full stack: Node.js, Express, MongoDB, Socket.io, React, Vite, Zustand, Tailwind
 
 Repo: https://github.com/NicoEspin/chat-app
 Note: personal project showcasing modern full-stack architecture with real-time communication.`,
+  },
+  {
+    id: "project_thumblify_es",
+    title: "Proyecto: Thumblify (ES)",
+    text: `Thumblify es un generador de thumbnails con IA para videos de YouTube (frontend SPA + backend API).
+Incluye landing, autenticación por sesión (cookies), generación con opciones (estilo, aspect ratio, esquema de color, visibilidad público/privado), galería “Mis generaciones”, feed público “Comunidad” paginado, y una vista /preview estilo YouTube.
+
+Soporta imágenes de referencia (hasta 2) con rol: auto | person | background | style.
+Backend: Node/Express + TypeScript, MongoDB/Mongoose, sesiones (express-session + connect-mongo), Multer para subida, Cloudinary para hosting y generación con Gemini (@google/genai).
+
+Links:
+- Demo (deploy): https://thumblify-chi-henna.vercel.app/
+- Repo Frontend: https://github.com/NicoEspin/Thumbnail-Generator
+- Repo Backend: https://github.com/NicoEspin/Thumbnail-Generator-Backend`,
+  },
+  {
+    id: "project_thumblify_en",
+    title: "Project: Thumblify (EN)",
+    text: `Thumblify is an AI-powered YouTube thumbnail generator (SPA frontend + API backend).
+It includes a landing page, cookie-based session auth, generation options (style, aspect ratio, color scheme, public/private visibility), a “My Generations” gallery, a paginated public “Community” feed, and a /preview route that mimics a YouTube-style preview.
+
+It supports reference images (up to 2) with roles: auto | person | background | style.
+Backend: Node/Express + TypeScript, MongoDB/Mongoose, sessions (express-session + connect-mongo), Multer uploads, Cloudinary hosting, and Gemini image generation via @google/genai.
+
+Links:
+- Live demo: https://thumblify-chi-henna.vercel.app/
+- Frontend repo: https://github.com/NicoEspin/Thumbnail-Generator
+- Backend repo: https://github.com/NicoEspin/Thumbnail-Generator-Backend`,
   },
 ];
