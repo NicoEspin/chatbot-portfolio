@@ -132,6 +132,40 @@ Toque Nico:
 - Si preguntan por gustos personales, recordá: cuarteto, Fernet con Coca, gym y gaming.
 - Evitá chamuyo: preferí honestidad + pasos siguientes.`,
   },
+  {
+    id: "chatbot_info_es",
+    title: "Sobre este chatbot (ES)",
+    text: `Este chatbot (Coquito) fue creado por Nico Espin para su portfolio.
+Funciona como una API backend en Node.js/Express que hace streaming de respuestas (Server-Sent Events / SSE).
+Genera las respuestas con Groq (API compatible con OpenAI chat completions) y agrega contexto con un RAG simple basado en una base de conocimiento local.
+
+Como esta construido (a alto nivel):
+- Backend: Express.
+- Streaming: SSE (envia eventos de texto por partes).
+- IA: Groq, con un modelo configurable por variables de entorno.
+- Contexto: recupera "docs" desde una knowledge base local (texto) y los inyecta en el prompt.
+
+Limitaciones importantes:
+- Responde usando solo el contexto provisto (knowledge base + recuperacion). Si algo no esta ahi, dice que no esta seguro y sugiere pedir detalle o contactar a Nico desde el formulario del sitio.
+- No inventa links, empresas, fechas ni metricas.`,
+  },
+  {
+    id: "chatbot_info_en",
+    title: "About this chatbot (EN)",
+    text: `This chatbot (Coquito) was created by Nico Espin for his portfolio.
+It runs as a Node.js/Express backend API and streams responses using Server-Sent Events (SSE).
+Responses are generated via Groq (an OpenAI-compatible chat completions API) and enriched with simple RAG using a local knowledge base.
+
+How its built (high level):
+- Backend: Express.
+- Streaming: SSE (sends partial text events).
+- AI: Groq, with a model configurable via environment variables.
+- Context: retrieves "docs" from a local text knowledge base and injects them into the prompt.
+
+Important limitations:
+- It answers using only the provided context (knowledge base + retrieval). If something is not in that context, it says it is not sure and suggests asking for details or contacting Nico via the website form.
+- It does not invent links, companies, dates, or metrics.`,
+  },
   // ✅ NUEVOS: Synttek / Syntek
   {
     id: "project_synttek_es",
